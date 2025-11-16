@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -115,8 +116,38 @@ public class FASTAReaderThreads {
 	 *         pattern in the data.
 	 */
 	public List<Integer> search(byte[] pattern) {
-		// TODO
-		return null;
+		List<Integer> encontrados = new ArrayList<>();
+		
+		int cores = Runtime.getRuntime().availableProcessors();
+		ExecutorService executor = Executors.newFixedThreadPool(cores);
+		Future<List<Integer>>[] futuros = new Future[cores];
+		
+		int length = content.length/cores;
+		int lo = 0;
+		int hi = length;
+		
+		//creacion de tareas
+		for (int i = 0; i < cores; i++) {
+		Callable<List<Integer>> tarea = new FASTASearchCallable(this,lo,hi,pattern);
+		Future<List<Integer>> future = executor.submit(tarea);
+		futuros[i] = future;
+		lo += length;
+		hi += length;
+		}
+		for (int i = 0; i < futuros.length; i++) {
+			try {
+				try {
+					encontrados.addAll(futuros[i].get());
+				} catch (ExecutionException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+			}
+		}
+		executor.shutdown();		
+		return encontrados;
 	}
 
 	public static void main(String[] args) {
